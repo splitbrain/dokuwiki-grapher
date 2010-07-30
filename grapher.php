@@ -273,7 +273,7 @@ function usage(){
     OPTIONS
         -h, --help                show this help and exit
         -d, --depth <num>         recursion depth. 0 for all. default: 1
-        -f, --format (dot|gfx)    output format, default: dot
+        -f, --format (dot|gexf)   output format, default: dot
         -m, --media (ns|all|none) how to handle media files. default: ns
         -o, --output <file>       where to store the output. default: STDOUT
 ";
