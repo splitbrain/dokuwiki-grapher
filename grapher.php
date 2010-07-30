@@ -48,9 +48,8 @@ foreach ($OPTS->options as $key => $val) {
     }
 }
 
-array_shift($argv);
-if(!count($argv)) usage();
-$namespaces = array_map('cleanID',$argv);
+$namespaces = array_map('cleanID',$OPTS->args);
+if(!count($namespaces)) $namespaces = array(''); //import from top
 $data = gather_data($namespaces, $DEPTH, $MEDIA);
 
 if($FORMAT == 'gexf'){
@@ -265,7 +264,7 @@ function create_gexf(&$data){
 }
 
 function usage(){
-    print "Usage: grapher.php <options> namespaces
+    print "Usage: grapher.php <options> [<namespaces>]
 
     Creates a graph representation of pages and media files and how they
     are interlinked
@@ -276,6 +275,10 @@ function usage(){
         -f, --format (dot|gexf)   output format, default: dot
         -m, --media (ns|all|none) how to handle media files. default: ns
         -o, --output <file>       where to store the output. default: STDOUT
+
+    NAMESPACES
+        Give all wiki namespaces you want to have graphed. If no namespace
+        is given, the root namespace is assumed.
 ";
     exit;
 }
