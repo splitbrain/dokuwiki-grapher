@@ -52,16 +52,20 @@ $namespaces = array_map('cleanID',$OPTS->args);
 if(!count($namespaces)) $namespaces = array(''); //import from top
 $data = gather_data($namespaces, $DEPTH, $MEDIA);
 
-if($FORMAT == 'gexf'){
-    $out = create_gexf($data);
-}else{
-    $out = create_dot($data);
-}
 if($OUTPUT){
-    io_saveFile($OUTPUT,$out);
+    $fh = fopen($OUTPUT,'w');
 }else{
-    echo $out;
+    $fh = STDOUT;
 }
+if(!$fh) die("failed to open output file\n");
+
+if($FORMAT == 'gexf'){
+    $out = create_gexf($data,$fh);
+}else{
+    $out = create_dot($data,$fh);
+}
+fclose($fh);
+
 
 
 /**
@@ -91,7 +95,7 @@ function gather_data($namespaces,$depth=0,$incmedia='ns'){
                    str_replace(':','/',$ns));
 
             // go through all those media files
-            foreach($data as $item){
+            while($item = array_shift($data)){
                 $media[$item['id']] = array(
                     'title' => noNS($item['id']),
                     'size'  => $item['size'],
@@ -133,7 +137,7 @@ function gather_data($namespaces,$depth=0,$incmedia='ns'){
         }
 
         // go through all those pages
-        foreach($data as $item){
+        while($item = array_shift($data)){
             $pages[$item['id']] = array(
                 'title' => $item['title'],
                 'ns'    => $item['ns'],
@@ -148,7 +152,7 @@ function gather_data($namespaces,$depth=0,$incmedia='ns'){
     // now get links and media
     foreach($pages as $pid => $item){
         // get instructions
-        $ins = p_cached_instructions(wikiFN($pid),false,$pid);
+        $ins = p_cached_instructions(wikiFN($pid),true,$pid);
         // find links and media usage
         foreach($ins as $i){
             $mid = null;
@@ -209,30 +213,29 @@ function gather_data($namespaces,$depth=0,$incmedia='ns'){
 /**
  * Create a Graphviz dot representation
  */
-function create_dot(&$data){
+function create_dot(&$data,$fh){
     $pages =& $data['pages'];
     $media =& $data['media'];
 
-    $out = '';
 
-    $out .= "digraph G {\n";
+    fwrite($fh, "digraph G {\n");
     // create all nodes first
     foreach($pages as $id => $page){
-        $out .= "    \"page-$id\" [shape=note, label=\"$id\\n{$page['title']}\", color=lightblue, fontname=Helvetica];\n";
+        fwrite($fh, "    \"page-$id\" [shape=note, label=\"$id\\n{$page['title']}\", color=lightblue, fontname=Helvetica];\n");
     }
     foreach($media as $id => $item){
-        $out .= "    \"media-$id\" [shape=box, label=\"$id\", color=sandybrown, fontname=Helvetica];\n";
+        fwrite($fh, "    \"media-$id\" [shape=box, label=\"$id\", color=sandybrown, fontname=Helvetica];\n");
     }
     // now create all the links
     foreach($pages as $id => $page){
         foreach($page['links'] as $link){
-            $out .= "    \"page-$id\" -> \"page-$link\" [color=navy];\n";
+            fwrite($fh, "    \"page-$id\" -> \"page-$link\" [color=navy];\n");
         }
         foreach($page['media'] as $link){
-            $out .= "    \"page-$id\" -> \"media-$link\" [color=firebrick];\n";
+            fwrite($fh, "    \"page-$id\" -> \"media-$link\" [color=firebrick];\n");
         }
     }
-    $out .= "}\n";
+    fwrite($fh, "}\n");
 
     return $out;
 }
@@ -240,79 +243,75 @@ function create_dot(&$data){
 /**
  * Create a GEXF representation
  */
-function create_gexf(&$data){
+function create_gexf(&$data,$fh){
     $pages =& $data['pages'];
     $media =& $data['media'];
 
-    $out = '';
-
-    $out .= "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
-    $out .= "<gexf xmlns=\"http://www.gexf.net/1.1draft\" version=\"1.1\"
-                   xmlns:viz=\"http://www.gexf.net/1.1draft/viz\">\n";
-    $out .= "    <meta lastmodifieddate=\"".date('Y-m-d H:i:s')."\">\n";
-    $out .= "        <creator>DokuWiki</creator>\n";
-    $out .= "    </meta>\n";
-    $out .= "    <graph mode=\"static\" defaultedgetype=\"directed\">\n";
+    fwrite($fh, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+    fwrite($fh, "<gexf xmlns=\"http://www.gexf.net/1.1draft\" version=\"1.1\"
+                   xmlns:viz=\"http://www.gexf.net/1.1draft/viz\">\n");
+    fwrite($fh, "    <meta lastmodifieddate=\"".date('Y-m-d H:i:s')."\">\n");
+    fwrite($fh, "        <creator>DokuWiki</creator>\n");
+    fwrite($fh, "    </meta>\n");
+    fwrite($fh, "    <graph mode=\"static\" defaultedgetype=\"directed\">\n");
 
     // define attributes
-    $out .= "        <attributes class=\"node\">\n";
-    $out .= "            <attribute id=\"title\" title=\"Title\" type=\"string\" />\n";
-    $out .= "            <attribute id=\"type\" title=\"Type\" type=\"liststring\">\n";
-    $out .= "                <default>page|media</default>\n";
-    $out .= "            </attribute>\n";
-    $out .= "            <attribute id=\"time\" title=\"Last Modified\" type=\"long\" />\n";
-    $out .= "            <attribute id=\"size\" title=\"File Size\" type=\"long\" />\n";
-    $out .= "        </attributes>\n";
+    fwrite($fh, "        <attributes class=\"node\">\n");
+    fwrite($fh, "            <attribute id=\"title\" title=\"Title\" type=\"string\" />\n");
+    fwrite($fh, "            <attribute id=\"type\" title=\"Type\" type=\"liststring\">\n");
+    fwrite($fh, "                <default>page|media</default>\n");
+    fwrite($fh, "            </attribute>\n");
+    fwrite($fh, "            <attribute id=\"time\" title=\"Last Modified\" type=\"long\" />\n");
+    fwrite($fh, "            <attribute id=\"size\" title=\"File Size\" type=\"long\" />\n");
+    fwrite($fh, "        </attributes>\n");
 
     // create all nodes first
-    $out .= "        <nodes>\n";
+    fwrite($fh, "        <nodes>\n");
     foreach($pages as $id => $item){
         $title = htmlspecialchars($item['title']);
-        $out .= "            <node id=\"page-$id\" label=\"$id\">\n";
-        $out .= "               <attvalues>\n";
-        $out .= "                   <attvalue for=\"type\" value=\"page\" />\n";
-        $out .= "                   <attvalue for=\"title\" value=\"$title\" />\n";
-        $out .= "                   <attvalue for=\"time\" value=\"{$item['time']}\" />\n";
-        $out .= "                   <attvalue for=\"size\" value=\"{$item['size']}\" />\n";
-        $out .= "               </attvalues>\n";
-        $out .= "               <viz:shape value=\"square\" />\n";
-        $out .= "               <viz:color r=\"173\" g=\"216\" b=\"230\" />\n";
-        $out .= "            </node>\n";
+        fwrite($fh, "            <node id=\"page-$id\" label=\"$id\">\n");
+        fwrite($fh, "               <attvalues>\n");
+        fwrite($fh, "                   <attvalue for=\"type\" value=\"page\" />\n");
+        fwrite($fh, "                   <attvalue for=\"title\" value=\"$title\" />\n");
+        fwrite($fh, "                   <attvalue for=\"time\" value=\"{$item['time']}\" />\n");
+        fwrite($fh, "                   <attvalue for=\"size\" value=\"{$item['size']}\" />\n");
+        fwrite($fh, "               </attvalues>\n");
+        fwrite($fh, "               <viz:shape value=\"square\" />\n");
+        fwrite($fh, "               <viz:color r=\"173\" g=\"216\" b=\"230\" />\n");
+        fwrite($fh, "            </node>\n");
     }
     foreach($media as $id => $item){
         $title = htmlspecialchars($item['title']);
-        $out .= "            <node id=\"media-$id\" label=\"$id\">\n";
-        $out .= "               <attvalues>\n";
-        $out .= "                   <attvalue for=\"type\" value=\"media\" />\n";
-        $out .= "                   <attvalue for=\"title\" value=\"$title\" />\n";
-        $out .= "                   <attvalue for=\"time\" value=\"{$item['time']}\" />\n";
-        $out .= "                   <attvalue for=\"size\" value=\"{$item['size']}\" />\n";
-        $out .= "               </attvalues>\n";
-        $out .= "               <viz:shape value=\"disc\" />\n";
-        $out .= "               <viz:color r=\"244\" g=\"164\" b=\"96\" />\n";
-        $out .= "            </node>\n";
+        fwrite($fh, "            <node id=\"media-$id\" label=\"$id\">\n");
+        fwrite($fh, "               <attvalues>\n");
+        fwrite($fh, "                   <attvalue for=\"type\" value=\"media\" />\n");
+        fwrite($fh, "                   <attvalue for=\"title\" value=\"$title\" />\n");
+        fwrite($fh, "                   <attvalue for=\"time\" value=\"{$item['time']}\" />\n");
+        fwrite($fh, "                   <attvalue for=\"size\" value=\"{$item['size']}\" />\n");
+        fwrite($fh, "               </attvalues>\n");
+        fwrite($fh, "               <viz:shape value=\"disc\" />\n");
+        fwrite($fh, "               <viz:color r=\"244\" g=\"164\" b=\"96\" />\n");
+        fwrite($fh, "            </node>\n");
     }
-    $out .= "        </nodes>\n";
+    fwrite($fh, "        </nodes>\n");
 
     // now create all the edges
-    $out .= "        <edges>\n";
+    fwrite($fh, "        <edges>\n");
     $cnt = 0;
     foreach($pages as $id => $page){
         foreach($page['links'] as $link){
             $cnt++;
-            $out .= "            <edge id=\"$cnt\" source=\"page-$id\" target=\"page-$link\" />\n";
+            fwrite($fh, "            <edge id=\"$cnt\" source=\"page-$id\" target=\"page-$link\" />\n");
         }
         foreach($page['media'] as $link){
             $cnt++;
-            $out .= "            <edge id=\"$cnt\" source=\"page-$id\" target=\"media-$link\" />\n";
+            fwrite($fh, "            <edge id=\"$cnt\" source=\"page-$id\" target=\"media-$link\" />\n");
         }
     }
-    $out .= "        </edges>\n";
+    fwrite($fh, "        </edges>\n");
 
-    $out .= "    </graph>\n";
-    $out .= "</gexf>\n";
-
-    return $out;
+    fwrite($fh, "    </graph>\n");
+    fwrite($fh, "</gexf>\n");
 }
 
 function usage(){
