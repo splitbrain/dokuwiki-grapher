@@ -86,12 +86,18 @@ function gather_data($namespaces,$depth=0,$incmedia='ns'){
                         'pagesonly' => false,
                         'skipacl'   => true,
                         'keeptxt'   => true,
+                        'meta'      => true,
                    ),
                    str_replace(':','/',$ns));
 
             // go through all those media files
             foreach($data as $item){
-                $media[] = $item['id'];
+                $media[$item['id']] = array(
+                    'title' => noNS($item['id']),
+                    'size'  => $item['size'],
+                    'ns'    => getNS($item['id']),
+                    'time'  => $item['mtime'],
+                );
             }
         }
 
@@ -107,6 +113,7 @@ function gather_data($namespaces,$depth=0,$incmedia='ns'){
                     'pagesonly' => true,
                     'skipacl'   => true,
                     'firsthead' => true,
+                    'meta'      => true,
                ),
                str_replace(':','/',$ns));
 
@@ -116,6 +123,8 @@ function gather_data($namespaces,$depth=0,$incmedia='ns'){
                 'id'    => $ns,
                 'ns'    => getNS($ns),
                 'title' => p_get_first_heading($ns,false),
+                'size'  => filesize(wikiFN($ns)),
+                'time'  => filemtime(wikiFN($ns)),
                 'perm'  => 16,
                 'type'  => 'f',
                 'level' => 0,
@@ -128,6 +137,8 @@ function gather_data($namespaces,$depth=0,$incmedia='ns'){
             $pages[$item['id']] = array(
                 'title' => $item['title'],
                 'ns'    => $item['ns'],
+                'size'  => $item['size'],
+                'time'  => $item['mtime'],
                 'links' => array(),
                 'media' => array(),
             );
@@ -172,9 +183,16 @@ function gather_data($namespaces,$depth=0,$incmedia='ns'){
 
             if($exists){
                 if($incmedia == 'all'){
-                    $media[] = $mid; // add node
+                    if(!isset($media[$mid])){ //add node
+                        $media[$mid] = array(
+                                            'size'  => filesize(mediaFN($mid)),
+                                            'time'  => filemtime(mediaFN($mid)),
+                                            'ns'    => getNS($mid),
+                                            'title' => noNS($mid),
+                                       );
+                    }
                     $pages[$pid]['media'][] = $mid;
-                }elseif(in_array($mid,$media)){
+                }elseif(isset($media[$mid])){
                     $pages[$pid]['media'][] = $mid;
                 }
             }
@@ -184,8 +202,6 @@ function gather_data($namespaces,$depth=0,$incmedia='ns'){
         $pages[$pid]['links'] = array_unique($pages[$pid]['links']);
         $pages[$pid]['media'] = array_unique($pages[$pid]['media']);
     }
-    // clean up duplicates
-    $media = array_unique($media);
 
     return array('pages'=>$pages, 'media'=>$media);
 }
@@ -204,7 +220,7 @@ function create_dot(&$data){
     foreach($pages as $id => $page){
         $out .= "    \"page-$id\" [shape=note, label=\"$id\\n{$page['title']}\", color=lightblue, fontname=Helvetica];\n";
     }
-    foreach($media as $id){
+    foreach($media as $id => $item){
         $out .= "    \"media-$id\" [shape=box, label=\"$id\", color=sandybrown, fontname=Helvetica];\n";
     }
     // now create all the links
@@ -240,31 +256,37 @@ function create_gexf(&$data){
 
     // define attributes
     $out .= "        <attributes class=\"node\">\n";
-    $out .= "            <attribute id=\"title\" title=\"title\" type=\"string\" />\n";
-    $out .= "            <attribute id=\"type\" title=\"type\" type=\"liststring\">\n";
+    $out .= "            <attribute id=\"title\" title=\"Title\" type=\"string\" />\n";
+    $out .= "            <attribute id=\"type\" title=\"Type\" type=\"liststring\">\n";
     $out .= "                <default>page|media</default>\n";
     $out .= "            </attribute>\n";
+    $out .= "            <attribute id=\"time\" title=\"Last Modified\" type=\"long\" />\n";
+    $out .= "            <attribute id=\"size\" title=\"File Size\" type=\"long\" />\n";
     $out .= "        </attributes>\n";
 
     // create all nodes first
     $out .= "        <nodes>\n";
-    foreach($pages as $id => $page){
-        $title = htmlspecialchars($page['title']);
+    foreach($pages as $id => $item){
+        $title = htmlspecialchars($item['title']);
         $out .= "            <node id=\"page-$id\" label=\"$id\">\n";
         $out .= "               <attvalues>\n";
         $out .= "                   <attvalue for=\"type\" value=\"page\" />\n";
         $out .= "                   <attvalue for=\"title\" value=\"$title\" />\n";
+        $out .= "                   <attvalue for=\"time\" value=\"{$item['time']}\" />\n";
+        $out .= "                   <attvalue for=\"size\" value=\"{$item['size']}\" />\n";
         $out .= "               </attvalues>\n";
         $out .= "               <viz:shape value=\"square\" />\n";
         $out .= "               <viz:color r=\"173\" g=\"216\" b=\"230\" />\n";
         $out .= "            </node>\n";
     }
-    foreach($media as $id){
-        $title = noNS($id);
+    foreach($media as $id => $item){
+        $title = htmlspecialchars($item['title']);
         $out .= "            <node id=\"media-$id\" label=\"$id\">\n";
         $out .= "               <attvalues>\n";
         $out .= "                   <attvalue for=\"type\" value=\"media\" />\n";
         $out .= "                   <attvalue for=\"title\" value=\"$title\" />\n";
+        $out .= "                   <attvalue for=\"time\" value=\"{$item['time']}\" />\n";
+        $out .= "                   <attvalue for=\"size\" value=\"{$item['size']}\" />\n";
         $out .= "               </attvalues>\n";
         $out .= "               <viz:shape value=\"disc\" />\n";
         $out .= "               <viz:color r=\"244\" g=\"164\" b=\"96\" />\n";
