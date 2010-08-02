@@ -133,8 +133,6 @@ function gather_data($namespaces,$depth=0,$incmedia='ns'){
             );
         }
     }
-    // clean up duplicates
-    $media = array_unique($media);
 
     // now get links and media
     foreach($pages as $pid => $item){
@@ -142,6 +140,8 @@ function gather_data($namespaces,$depth=0,$incmedia='ns'){
         $ins = p_cached_instructions(wikiFN($pid),false,$pid);
         // find links and media usage
         foreach($ins as $i){
+            $mid = null;
+
             if($i[0] == 'internallink'){
                 $id     = $i[1][0];
                 $exists = true;
@@ -151,21 +151,31 @@ function gather_data($namespaces,$depth=0,$incmedia='ns'){
                 if($exists && isset($pages[$id])){
                     $pages[$pid]['links'][] = $id;
                 }
-                //FIXME handle images in links here
-            }elseif($i[0] == 'internalmedia'){
-                if($incmedia == 'none') continue; // no media wanted
+                if(is_array($i[1][1]) && $i[1][1]['type'] == 'internalmedia'){
+                    $mid = $i[1][1]['src']; // image link
+                }else{
+                    continue; // we're done here
+                }
+            }
 
-                $id     = $i[1][0];
-                $exists = true;
-                resolve_mediaid($item['ns'],$id,$exists);
-                list($id) = explode('#',$id,2);
-                if($exists){
-                    if($incmedia == 'all'){
-                        $media[] = $id; // add node
-                        $pages[$pid]['media'][] = $id;
-                    }elseif(in_array($id,$media)){
-                        $pages[$pid]['media'][] = $id;
-                    }
+            if($i[0] == 'internalmedia'){
+                $mid = $i[1][0];
+            }
+
+            if(is_null($mid)) continue;
+            if($incmedia == 'none') continue; // no media wanted
+
+            $exists = true;
+            resolve_mediaid($item['ns'],$mid,$exists);
+            list($mid) = explode('#',$mid,2);
+            $mid = cleanID($mid);
+
+            if($exists){
+                if($incmedia == 'all'){
+                    $media[] = $mid; // add node
+                    $pages[$pid]['media'][] = $mid;
+                }elseif(in_array($mid,$media)){
+                    $pages[$pid]['media'][] = $mid;
                 }
             }
         }
@@ -174,6 +184,8 @@ function gather_data($namespaces,$depth=0,$incmedia='ns'){
         $pages[$pid]['links'] = array_unique($pages[$pid]['links']);
         $pages[$pid]['media'] = array_unique($pages[$pid]['media']);
     }
+    // clean up duplicates
+    $media = array_unique($media);
 
     return array('pages'=>$pages, 'media'=>$media);
 }
