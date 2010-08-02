@@ -110,53 +110,71 @@ function gather_data($namespaces,$depth=0,$incmedia='ns'){
                ),
                str_replace(':','/',$ns));
 
+        // ns start page
+        if($ns && page_exists($ns)){
+            $data[] = array(
+                'id'    => $ns,
+                'ns'    => getNS($ns),
+                'title' => p_get_first_heading($ns,false),
+                'perm'  => 16,
+                'type'  => 'f',
+                'level' => 0,
+                'open'  => 1,
+            );
+        }
+
         // go through all those pages
         foreach($data as $item){
             $pages[$item['id']] = array(
                 'title' => $item['title'],
+                'ns'    => $item['ns'],
                 'links' => array(),
                 'media' => array(),
             );
+        }
+    }
+    // clean up duplicates
+    $media = array_unique($media);
 
-            // get instructions
-            $ins = p_cached_instructions(wikiFN($item['id']),false,$item['id']);
-            // find links and media usage
-            foreach($ins as $i){
-                if($i[0] == 'internallink'){
-                    $id     = $i[1][0];
-                    $exists = true;
-                    resolve_pageid($item['ns'],$id,$exists);
-                    list($id) = explode('#',$id,2);
-                    if($id == $item['id']) continue; // skip self references
-                    if($exists && isset($pages[$id])){
-                        $pages[$item['id']]['links'][] = $id;
-                    }
-                    //FIXME handle images in links here
-                }elseif($i[0] == 'internalmedia'){
-                    if($incmedia == 'none') continue; // no media wanted
+    // now get links and media
+    foreach($pages as $pid => $item){
+        // get instructions
+        $ins = p_cached_instructions(wikiFN($pid),false,$pid);
+        // find links and media usage
+        foreach($ins as $i){
+            if($i[0] == 'internallink'){
+                $id     = $i[1][0];
+                $exists = true;
+                resolve_pageid($item['ns'],$id,$exists);
+                list($id) = explode('#',$id,2);
+                if($id == $pid) continue; // skip self references
+                if($exists && isset($pages[$id])){
+                    $pages[$pid]['links'][] = $id;
+                }
+                //FIXME handle images in links here
+            }elseif($i[0] == 'internalmedia'){
+                if($incmedia == 'none') continue; // no media wanted
 
-                    $id     = $i[1][0];
-                    $exists = true;
-                    resolve_mediaid($item['ns'],$id,$exists);
-                    list($id) = explode('#',$id,2);
-                    if($exists){
-                        if($incmedia == 'all'){
-                            $media[] = $id; // add node
-                            $pages[$item['id']]['media'][] = $id;
-                        }elseif(in_array($id,$media)){
-                            $pages[$item['id']]['media'][] = $id;
-                        }
+                $id     = $i[1][0];
+                $exists = true;
+                resolve_mediaid($item['ns'],$id,$exists);
+                list($id) = explode('#',$id,2);
+                if($exists){
+                    if($incmedia == 'all'){
+                        $media[] = $id; // add node
+                        $pages[$pid]['media'][] = $id;
+                    }elseif(in_array($id,$media)){
+                        $pages[$pid]['media'][] = $id;
                     }
                 }
             }
-
-            // clean up duplicates
-            $pages[$item['id']]['links'] = array_unique($pages[$item['id']]['links']);
-            $pages[$item['id']]['media'] = array_unique($pages[$item['id']]['media']);
         }
+
         // clean up duplicates
-        $media = array_unique($media);
+        $pages[$pid]['links'] = array_unique($pages[$pid]['links']);
+        $pages[$pid]['media'] = array_unique($pages[$pid]['media']);
     }
+
     return array('pages'=>$pages, 'media'=>$media);
 }
 
