@@ -145,6 +145,8 @@ function gather_data($namespaces,$depth=0,$incmedia='ns'){
             if(!$time) $time = $item['mtime'];
             $lang = ($transplugin)?$transplugin->getLangPart($item['id']):'';
 
+            if($lang) $item['ns'] = preg_replace('/^'.$lang.'(:|$)/','',$item['ns']);
+
             $pages[$item['id']] = array(
                 'title' => $item['title'],
                 'ns'    => $item['ns'],
@@ -280,13 +282,12 @@ function create_gexf(&$data,$fh){
     foreach($pages as $id => $item){
         $title = htmlspecialchars($item['title']);
         $lang  = htmlspecialchars($item['lang']);
-        $ns    = getNS($id);
         fwrite($fh, "            <node id=\"page-$id\" label=\"$id\" start=\"{$item['time']}\">\n");
         fwrite($fh, "               <attvalues>\n");
         fwrite($fh, "                   <attvalue for=\"type\" value=\"page\" />\n");
         fwrite($fh, "                   <attvalue for=\"title\" value=\"$title\" />\n");
         fwrite($fh, "                   <attvalue for=\"lang\" value=\"$lang\" />\n");
-        fwrite($fh, "                   <attvalue for=\"ns\" value=\"$ns\" />\n");
+        fwrite($fh, "                   <attvalue for=\"ns\" value=\"{$item['ns']}\" />\n");
         fwrite($fh, "                   <attvalue for=\"time\" value=\"{$item['time']}\" />\n");
         fwrite($fh, "                   <attvalue for=\"size\" value=\"{$item['size']}\" />\n");
         fwrite($fh, "               </attvalues>\n");
@@ -297,13 +298,12 @@ function create_gexf(&$data,$fh){
     foreach($media as $id => $item){
         $title = htmlspecialchars($item['title']);
         $lang  = htmlspecialchars($item['lang']);
-        $ns    = getNS($id);
         fwrite($fh, "            <node id=\"media-$id\" label=\"$id\" start=\"{$item['time']}\">\n");
         fwrite($fh, "               <attvalues>\n");
         fwrite($fh, "                   <attvalue for=\"type\" value=\"media\" />\n");
         fwrite($fh, "                   <attvalue for=\"title\" value=\"$title\" />\n");
         fwrite($fh, "                   <attvalue for=\"lang\" value=\"$lang\" />\n");
-        fwrite($fh, "                   <attvalue for=\"ns\" value=\"$ns\" />\n");
+        fwrite($fh, "                   <attvalue for=\"ns\" value=\"{$item['ns']}\" />\n");
         fwrite($fh, "                   <attvalue for=\"time\" value=\"{$item['time']}\" />\n");
         fwrite($fh, "                   <attvalue for=\"size\" value=\"{$item['size']}\" />\n");
         fwrite($fh, "               </attvalues>\n");
