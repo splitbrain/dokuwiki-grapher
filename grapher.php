@@ -74,6 +74,9 @@ fclose($fh);
 function gather_data($namespaces,$depth=0,$incmedia='ns'){
     global $conf;
 
+    $transplugin = plugin_load('helper','translation');
+
+
     $pages = array();
     $media = array();
     foreach ($namespaces as $ns){
@@ -128,7 +131,7 @@ function gather_data($namespaces,$depth=0,$incmedia='ns'){
                 'ns'    => getNS($ns),
                 'title' => p_get_first_heading($ns,false),
                 'size'  => filesize(wikiFN($ns)),
-                'time'  => filemtime(wikiFN($ns)),
+                'mtime' => filemtime(wikiFN($ns)),
                 'perm'  => 16,
                 'type'  => 'f',
                 'level' => 0,
@@ -138,13 +141,18 @@ function gather_data($namespaces,$depth=0,$incmedia='ns'){
 
         // go through all those pages
         while($item = array_shift($data)){
+            $time = (int) p_get_metadata($item['id'], 'date created', false);
+            if(!$time) $time = $item['mtime'];
+            $lang = ($transplugin)?$transplugin->getLangPart($item['id']):'';
+
             $pages[$item['id']] = array(
                 'title' => $item['title'],
                 'ns'    => $item['ns'],
                 'size'  => $item['size'],
-                'time'  => $item['mtime'],
+                'time'  => $time,
                 'links' => array(),
                 'media' => array(),
+                'lang'  => $lang
             );
         }
     }
@@ -253,15 +261,17 @@ function create_gexf(&$data,$fh){
     fwrite($fh, "    <meta lastmodifieddate=\"".date('Y-m-d H:i:s')."\">\n");
     fwrite($fh, "        <creator>DokuWiki</creator>\n");
     fwrite($fh, "    </meta>\n");
-    fwrite($fh, "    <graph mode=\"static\" defaultedgetype=\"directed\">\n");
+    fwrite($fh, "    <graph mode=\"dynamic\" defaultedgetype=\"directed\">\n");
 
     // define attributes
     fwrite($fh, "        <attributes class=\"node\">\n");
     fwrite($fh, "            <attribute id=\"title\" title=\"Title\" type=\"string\" />\n");
+    fwrite($fh, "            <attribute id=\"lang\" title=\"Language\" type=\"string\" />\n");
+    fwrite($fh, "            <attribute id=\"ns\" title=\"Namespace\" type=\"string\" />\n");
     fwrite($fh, "            <attribute id=\"type\" title=\"Type\" type=\"liststring\">\n");
     fwrite($fh, "                <default>page|media</default>\n");
     fwrite($fh, "            </attribute>\n");
-    fwrite($fh, "            <attribute id=\"time\" title=\"Last Modified\" type=\"long\" />\n");
+    fwrite($fh, "            <attribute id=\"time\" title=\"Created\" type=\"long\" />\n");
     fwrite($fh, "            <attribute id=\"size\" title=\"File Size\" type=\"long\" />\n");
     fwrite($fh, "        </attributes>\n");
 
@@ -269,10 +279,14 @@ function create_gexf(&$data,$fh){
     fwrite($fh, "        <nodes>\n");
     foreach($pages as $id => $item){
         $title = htmlspecialchars($item['title']);
-        fwrite($fh, "            <node id=\"page-$id\" label=\"$id\">\n");
+        $lang  = htmlspecialchars($item['lang']);
+        $ns    = getNS($id);
+        fwrite($fh, "            <node id=\"page-$id\" label=\"$id\" start=\"{$item['time']}\">\n");
         fwrite($fh, "               <attvalues>\n");
         fwrite($fh, "                   <attvalue for=\"type\" value=\"page\" />\n");
         fwrite($fh, "                   <attvalue for=\"title\" value=\"$title\" />\n");
+        fwrite($fh, "                   <attvalue for=\"lang\" value=\"$lang\" />\n");
+        fwrite($fh, "                   <attvalue for=\"ns\" value=\"$ns\" />\n");
         fwrite($fh, "                   <attvalue for=\"time\" value=\"{$item['time']}\" />\n");
         fwrite($fh, "                   <attvalue for=\"size\" value=\"{$item['size']}\" />\n");
         fwrite($fh, "               </attvalues>\n");
@@ -282,10 +296,14 @@ function create_gexf(&$data,$fh){
     }
     foreach($media as $id => $item){
         $title = htmlspecialchars($item['title']);
-        fwrite($fh, "            <node id=\"media-$id\" label=\"$id\">\n");
+        $lang  = htmlspecialchars($item['lang']);
+        $ns    = getNS($id);
+        fwrite($fh, "            <node id=\"media-$id\" label=\"$id\" start=\"{$item['time']}\">\n");
         fwrite($fh, "               <attvalues>\n");
         fwrite($fh, "                   <attvalue for=\"type\" value=\"media\" />\n");
         fwrite($fh, "                   <attvalue for=\"title\" value=\"$title\" />\n");
+        fwrite($fh, "                   <attvalue for=\"lang\" value=\"$lang\" />\n");
+        fwrite($fh, "                   <attvalue for=\"ns\" value=\"$ns\" />\n");
         fwrite($fh, "                   <attvalue for=\"time\" value=\"{$item['time']}\" />\n");
         fwrite($fh, "                   <attvalue for=\"size\" value=\"{$item['size']}\" />\n");
         fwrite($fh, "               </attvalues>\n");
