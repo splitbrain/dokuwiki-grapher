@@ -162,7 +162,7 @@ function gather_data($namespaces,$depth=0,$incmedia='ns'){
     // now get links and media
     foreach($pages as $pid => $item){
         // get instructions
-        $ins = p_cached_instructions(wikiFN($pid),true,$pid);
+        $ins = p_cached_instructions(wikiFN($pid),false,$pid);
         // find links and media usage
         foreach($ins as $i){
             $mid = null;
