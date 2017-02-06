@@ -26,9 +26,9 @@ class Grapher extends DokuCLI {
         $options->registerOption(
             'format',
             "The wanted output format. 'dot' is a very simple format which can be used to visualize the resulting ".
-            "graph with graphviz. The 'gefx' format is a more complex XML-based format which contains more info ".
+            "graph with graphviz. The 'gexf' format is a more complex XML-based format which contains more info ".
             "about the found nodes and can be loaded in Gephi. Default: dot",
-            'f', 'dot|gefx');
+            'f', 'dot|gexf');
         $options->registerOption(
             'output',
             "Where to store the output eg. a filename. If not given the output is written to STDOUT.",
@@ -56,7 +56,7 @@ class Grapher extends DokuCLI {
             $this->fatal('Bad media option: ' . $media);
         }
         $format = $options->getOpt('format', 'dot');
-        if(!in_array($format, array('dot', 'gefx'))) {
+        if(!in_array($format, array('dot', 'gexf'))) {
             $this->fatal('Bad format option: ' . $format);
         }
         $output = $options->getOpt('output', '-');
@@ -71,7 +71,7 @@ class Grapher extends DokuCLI {
         $data = $this->gather_data($namespaces, $depth, $media);
         if($format == 'dot') {
             $this->create_dot($data, $fh);
-        } elseif($format == 'gefx') {
+        } elseif($format == 'gexf') {
             $this->create_gexf($data, $fh);
         }
 
