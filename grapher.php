@@ -1,9 +1,13 @@
 #!/usr/bin/php
 <?php
+
+use splitbrain\phpcli\CLI;
+use splitbrain\phpcli\Options;
+
 if(!defined('DOKU_INC')) define('DOKU_INC', realpath(dirname(__FILE__) . '/../') . '/');
 require_once(DOKU_INC . 'inc/init.php');
 
-class Grapher extends DokuCLI {
+class Grapher extends CLI {
 
     /**
      * Register options and arguments on the given $options object
@@ -11,7 +15,7 @@ class Grapher extends DokuCLI {
      * @param DokuCLI_Options $options
      * @return void
      */
-    protected function setup(DokuCLI_Options $options) {
+    protected function setup(Options $options) {
         $options->setHelp('Creates a graph representation of pages and media files and how they are interlinked.');
         $options->registerOption(
             'depth',
@@ -49,7 +53,7 @@ class Grapher extends DokuCLI {
      * @param DokuCLI_Options $options
      * @return void
      */
-    protected function main(DokuCLI_Options $options) {
+    protected function main(Options $options) {
         $depth = $options->getOpt('depth', 1);
         $media = $options->getOpt('media', 'ns');
         if(!in_array($media, array('ns', 'all', 'none'))) {
